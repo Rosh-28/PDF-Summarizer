@@ -5,7 +5,7 @@ from pathlib import Path
 from langchain_community.document_loaders import PyMuPDFLoader
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain.schema.document import Document
-from get_embedding_function import get_embedding_function
+from backend.get_embedding_function import get_embedding_function
 from langchain_chroma import Chroma
 
 CHROMA_PATH = "chroma"
@@ -34,7 +34,7 @@ def main():
         return
 
     # show sample document metadata for debugging
-    print_sample_info(documents, chunks)
+    #print_sample_info(documents, chunks)
 
     add_to_chroma(chunks)
 
@@ -135,13 +135,13 @@ def calculate_chunk_ids(chunks):
     return chunks
 
 
-def print_sample_info(documents, chunks):
-    print("--- SAMPLE DOCUMENT METADATA ---")
-    for i, d in enumerate(documents[:3]):
-        print(f"Doc {i}: source={d.metadata.get('source')}, length={len(d.page_content)}")
-    print("--- SAMPLE CHUNKS ---")
-    for i, c in enumerate(chunks[:5]):
-        print(f"Chunk {i}: id={c.metadata.get('id')}, source={c.metadata.get('source')}, len={len(c.page_content)}")
+# def print_sample_info(documents, chunks):
+#     print("--- SAMPLE DOCUMENT METADATA ---")
+#     for i, d in enumerate(documents[:3]):
+#         print(f"Doc {i}: source={d.metadata.get('source')}, length={len(d.page_content)}")
+#     print("--- SAMPLE CHUNKS ---")
+#     for i, c in enumerate(chunks[:5]):
+#         print(f"Chunk {i}: id={c.metadata.get('id')}, source={c.metadata.get('source')}, len={len(c.page_content)}")
 
 
 def clear_database():

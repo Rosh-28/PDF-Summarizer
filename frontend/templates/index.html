@@ -1,0 +1,237 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PDF Summarizer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>📄 PDF Summarizer</h1>
+            <p>Upload your PDF and get an AI-powered summary</p>
+        </div>
+
+        <div class="upload-section">
+            <div class="upload-area" id="uploadArea" enctype="multipart/form-data">
+                <div class="upload-icon">📁</div>
+                <h3>Drop your PDF here</h3>
+                <p>or click to browse from your device</p>
+                <input type="file" id="fileInput" accept=".pdf">
+            </div>
+            <div class="file-info" id="fileInfo">
+                <span class="file-icon">📄</span>
+                <div class="file-details">
+                    <div class="file-name" id="fileName"></div>
+                    <div class="file-size" id="fileSize"></div>
+                </div>
+                <button class="remove-btn" id="removeBtn">Remove</button>
+            </div>
+        </div>
+
+        <div class="stats" id="stats">
+            <div class="stat-card">
+                <div class="stat-value" id="pageCount">-</div>
+                <div class="stat-label">Pages</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="wordCount">-</div>
+                <div class="stat-label">Words</div>
+            </div>
+        </div>
+
+        <div class="input-group">
+            <label for="topicInput">📝 Enter topic to summarize (optional)</label>
+            <input type="text" id="topicInput" placeholder="e.g., Key findings, Methodology, Conclusions...">
+        </div>
+
+        <button class="summarize-btn" id="summarizeBtn" disabled>Generate Summary</button>
+
+        <div class="loading" id="loading">
+            <div class="spinner"></div>
+            <p>Analyzing your document...</p>
+        </div>
+
+        <div class="output-section" id="outputSection">
+            <div class="output-header">
+                <h3>📋 Summary</h3>
+                <button class="copy-btn" id="copyBtn">
+                    <span>📋</span> Copy
+                </button>
+            </div>
+            <div class="summary-box" id="summaryBox"></div>
+        </div>
+    </div>
+
+    <script>
+        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+        let uploadedFile = null;
+        let extractedText = '';
+
+        const uploadArea = document.getElementById('uploadArea');
+        const fileInput = document.getElementById('fileInput');
+        const fileInfo = document.getElementById('fileInfo');
+        const fileName = document.getElementById('fileName');
+        const fileSize = document.getElementById('fileSize');
+        const removeBtn = document.getElementById('removeBtn');
+        const summarizeBtn = document.getElementById('summarizeBtn');
+        const topicInput = document.getElementById('topicInput');
+        const loading = document.getElementById('loading');
+        const outputSection = document.getElementById('outputSection');
+        const summaryBox = document.getElementById('summaryBox');
+        const copyBtn = document.getElementById('copyBtn');
+        const stats = document.getElementById('stats');
+        const pageCount = document.getElementById('pageCount');
+        const wordCount = document.getElementById('wordCount');
+
+        uploadArea.addEventListener('click', () => fileInput.click());
+
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.classList.add('dragover');
+        });
+
+        uploadArea.addEventListener('dragleave', () => {
+            uploadArea.classList.remove('dragover');
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.classList.remove('dragover');
+            const files = e.dataTransfer.files;
+            if (files.length > 0 && files[0].type === 'application/pdf') {
+                handleFile(files[0]);
+            }
+        });
+
+        fileInput.addEventListener('change', (e) => {
+            if (e.target.files.length > 0) {
+                handleFile(e.target.files[0]);
+            }
+        });
+
+        removeBtn.addEventListener('click', () => {
+            uploadedFile = null;
+            extractedText = '';
+            fileInput.value = '';
+            fileInfo.classList.remove('show');
+            stats.classList.remove('show');
+            summarizeBtn.disabled = true;
+            outputSection.classList.remove('show');
+        });
+
+        async function handleFile(file) {
+            uploadedFile = file;
+            fileName.textContent = file.name;
+            fileSize.textContent = formatFileSize(file.size);
+            fileInfo.classList.add('show');
+            summarizeBtn.disabled = false;
+
+            // First upload the file to server
+            const uploaded = await uploadFileToServer(file);
+            if (uploaded) {
+                // Then extract text for frontend processing
+                await extractTextFromPDF(file);
+            }
+        }
+
+        async function uploadFileToServer(file) {
+            const formData = new FormData();
+            formData.append('pdfFile', file);
+
+            try {
+                const response = await fetch('/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    alert(`Upload failed: ${errorText}`);
+                    return false;
+                }
+                return true;
+            } catch (err) {
+                alert('Error uploading PDF: ' + err.message);
+                return false;
+            }
+        }
+
+        async function extractTextFromPDF(file) {
+            const arrayBuffer = await file.arrayBuffer();
+            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
+            let text = '';
+
+            for (let i = 1; i <= pdf.numPages; i++) {
+                const page = await pdf.getPage(i);
+                const content = await page.getTextContent();
+                const pageText = content.items.map(item => item.str).join(' ');
+                text += pageText + ' ';
+            }
+
+            extractedText = text;
+            
+            pageCount.textContent = pdf.numPages;
+            const words = text.trim().split(/\s+/).length;
+            wordCount.textContent = words.toLocaleString();
+            stats.classList.add('show');
+        }
+
+        function formatFileSize(bytes) {
+            if (bytes < 1024) return bytes + ' B';
+            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
+            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+        }
+
+        summarizeBtn.addEventListener('click', async () => {
+            if (!uploadedFile) return;
+
+            loading.classList.add('show');
+            outputSection.classList.remove('show');
+            summarizeBtn.disabled = true;
+
+            setTimeout(() => {
+                const topic = topicInput.value.trim();
+                const summary = generateSummary(extractedText, topic);
+                
+                summaryBox.textContent = summary;
+                loading.classList.remove('show');
+                outputSection.classList.add('show');
+                summarizeBtn.disabled = false;
+            }, 1500);
+        });
+
+        function generateSummary(text, topic) {
+            const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
+            const words = text.trim().split(/\s+/);
+            
+            let summary = `Document Overview:\n\n`;
+            summary += `This document contains approximately ${words.length.toLocaleString()} words across ${sentences.length} sentences. `;
+            
+            if (topic) {
+                summary += `\n\nFocusing on "${topic}":\n\n`;
+                summary += `The document discusses various aspects related to ${topic.toLowerCase()}. `;
+            } else {
+                summary += `\n\nKey Points:\n\n`;
+            }
+
+            const sampleSentences = sentences.slice(0, 5).join(' ').substring(0, 500);
+            summary += sampleSentences + '...\n\n';
+            summary += `Note: This is a demo summarizer. In a production environment, this would use an actual AI/ML model to generate intelligent summaries based on the document content${topic ? ' and your specified topic' : ''}.`;
+
+            return summary;
+        }
+
+        copyBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(summaryBox.textContent);
+            copyBtn.innerHTML = '<span>✓</span> Copied!';
+            setTimeout(() => {
+                copyBtn.innerHTML = '<span>📋</span> Copy';
+            }, 2000);
+        });
+    </script>
+</body>
+</html>
