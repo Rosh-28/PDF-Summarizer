@@ -1,0 +1,107 @@
+# ============================================================================
+# Python
+# ============================================================================
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+pip-wheel-metadata/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Python Virtual Environments
+venv/
+ENV/
+env/
+.venv
+env.bak/
+venv.bak/
+
+# ============================================================================
+# IDE & Editor
+# ============================================================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+*.sublime-project
+*.sublime-workspace
+.project
+.pydevproject
+.settings/
+
+# ============================================================================
+# Environment & Configuration
+# ============================================================================
+.env
+.env.local
+.env.*.local
+*.key
+*.pem
+config.local.py
+
+# ============================================================================
+# Project-Specific
+# ============================================================================
+# Data & Database
+data/
+PDFs/
+uploads/
+*.db
+*.sqlite
+*.sqlite3
+chroma.sqlite3
+*.bin
+*.parquet
+
+# Large files
+*.pdf
+*.zip
+*.tar.gz
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+temp/
+tmp/
+*.tmp
+
+# ============================================================================
+# OS
+# ============================================================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ============================================================================
+# Other
+# ============================================================================
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/

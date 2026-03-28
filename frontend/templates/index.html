@@ -3,235 +3,384 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>PDF Summarizer</title>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <title>PDF RAG Summarizer</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
+    <nav class="navbar">
+        <div class="nav-container">
+            <div class="logo">
+                <span class="logo-icon">⬆</span>
+                <span class="logo-text">DocRAG</span>
+            </div>
+            <div class="nav-links">
+                <a href="#" class="nav-link active" data-tab="query">Query</a>
+                <a href="#" class="nav-link" data-tab="upload">Upload</a>
+                <a href="#" class="nav-link" data-tab="stats">Stats</a>
+            </div>
+        </div>
+    </nav>
+
     <div class="container">
-        <div class="header">
-            <h1>📄 PDF Summarizer</h1>
-            <p>Upload your PDF and get an AI-powered summary</p>
+        <div class="main-header">
+            <div class="header-content">
+                <h1>Document Intelligence</h1>
+                <p>Query your documents with AI-powered retrieval and semantic search</p>
+            </div>
         </div>
 
-        <div class="upload-section">
-            <div class="upload-area" id="uploadArea" enctype="multipart/form-data">
-                <div class="upload-icon">📁</div>
-                <h3>Drop your PDF here</h3>
-                <p>or click to browse from your device</p>
-                <input type="file" id="fileInput" accept=".pdf">
-            </div>
-            <div class="file-info" id="fileInfo">
-                <span class="file-icon">📄</span>
-                <div class="file-details">
-                    <div class="file-name" id="fileName"></div>
-                    <div class="file-size" id="fileSize"></div>
+        <div class="content-wrapper">
+
+            <!-- QUERY TAB -->
+            <div class="tab-content active" id="query-tab">
+                <div class="query-section">
+                    <div class="query-card">
+                        <h2>Ask a Question</h2>
+                        <p class="subtitle">Query your indexed documents with semantic search</p>
+                        
+                        <div class="form-group">
+                            <textarea 
+                                id="queryInput" 
+                                placeholder="Enter your question here..." 
+                                rows="4"
+                                class="input-field"
+                            ></textarea>
+                        </div>
+                        
+                        <div class="form-controls">
+                            <div class="form-group">
+                                <label for="k">Number of sources to retrieve</label>
+                                <input type="number" id="k" value="5" min="1" max="20" class="input-field">
+                            </div>
+                            <button class="btn btn-primary" id="queryBtn">Search</button>
+                        </div>
+                    </div>
+
+                    <div class="loading hidden" id="loading">
+                        <div class="spinner"></div>
+                        <p>Processing your query...</p>
+                    </div>
+
+                    <div class="response-section hidden" id="responseSection">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Result</h3>
+                            </div>
+                            <div class="response-text" id="responseText"></div>
+                            <button class="btn btn-secondary" id="copyResponseBtn">Copy Answer</button>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Sources</h3>
+                            </div>
+                            <div class="sources-list" id="sourcesList"></div>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>Quality Metrics</h3>
+                            </div>
+                            <div class="quality-metrics" id="qualityMetrics"></div>
+                        </div>
+                    </div>
+
+                    <div class="error-section hidden" id="errorSection">
+                        <div class="error-message" id="errorMessage"></div>
+                    </div>
                 </div>
-                <button class="remove-btn" id="removeBtn">Remove</button>
             </div>
-        </div>
 
-        <div class="stats" id="stats">
-            <div class="stat-card">
-                <div class="stat-value" id="pageCount">-</div>
-                <div class="stat-label">Pages</div>
+            <!-- UPLOAD TAB -->
+            <div class="tab-content" id="upload-tab">
+                <div class="upload-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>Upload Documents</h2>
+                            <p class="subtitle">Add PDF files to your knowledge base</p>
+                        </div>
+                        
+                        <div class="upload-area" id="uploadArea">
+                            <svg class="upload-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                                <polyline points="17 8 12 3 7 8"></polyline>
+                                <line x1="12" y1="3" x2="12" y2="15"></line>
+                            </svg>
+                            <h3>Drop files here or click to browse</h3>
+                            <p>Supported format: PDF</p>
+                            <input type="file" id="fileInput" accept=".pdf" multiple>
+                        </div>
+                        
+                        <div class="info-box">
+                            <p><strong>Automatic indexing:</strong> PDFs are automatically indexed and added to the knowledge base when uploaded</p>
+                        </div>
+                    </div>
+
+                    <div class="upload-status hidden" id="uploadStatus">
+                        <div class="status-message" id="statusMessage"></div>
+                    </div>
+                </div>
             </div>
-            <div class="stat-card">
-                <div class="stat-value" id="wordCount">-</div>
-                <div class="stat-label">Words</div>
+
+            <!-- STATS TAB -->
+            <div class="tab-content" id="stats-tab">
+                <div class="stats-section">
+                    <div class="card">
+                        <div class="card-header">
+                            <h2>System Configuration</h2>
+                        </div>
+                        <div class="stats-grid" id="statsGrid">
+                            <div class="stat-item">
+                                <span class="stat-label">Documents Indexed</span>
+                                <span class="stat-value" id="totalDocs">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">LLM Model</span>
+                                <span class="stat-value" id="llmModel">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Embeddings Model</span>
+                                <span class="stat-value" id="embeddingModel">-</span>
+                            </div>
+                            <div class="stat-item">
+                                <span class="stat-label">Chunk Size</span>
+                                <span class="stat-value" id="chunkSize">-</span>
+                            </div>
+                        </div>
+                        <button class="btn btn-secondary" id="refreshStatsBtn">Refresh</button>
+                    </div>
+                </div>
             </div>
-        </div>
-
-        <div class="input-group">
-            <label for="topicInput">📝 Enter topic to summarize (optional)</label>
-            <input type="text" id="topicInput" placeholder="e.g., Key findings, Methodology, Conclusions...">
-        </div>
-
-        <button class="summarize-btn" id="summarizeBtn" disabled>Generate Summary</button>
-
-        <div class="loading" id="loading">
-            <div class="spinner"></div>
-            <p>Analyzing your document...</p>
-        </div>
-
-        <div class="output-section" id="outputSection">
-            <div class="output-header">
-                <h3>📋 Summary</h3>
-                <button class="copy-btn" id="copyBtn">
-                    <span>📋</span> Copy
-                </button>
-            </div>
-            <div class="summary-box" id="summaryBox"></div>
         </div>
     </div>
 
     <script>
-        pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+        // Tab navigation
+        document.querySelectorAll('.nav-link').forEach(link => {
+            link.addEventListener('click', (e) => {
+                e.preventDefault();
+                const tabName = e.target.dataset.tab;
+                
+                // Update active nav link
+                document.querySelectorAll('.nav-link').forEach(l => l.classList.remove('active'));
+                e.target.classList.add('active');
+                
+                // Update active tab
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                document.getElementById(`${tabName}-tab`).classList.add('active');
+                
+                // Load stats if stats tab
+                if (tabName === 'stats') {
+                    loadStats();
+                }
+            });
+        });
 
-        let uploadedFile = null;
-        let extractedText = '';
+        // Query functionality
+        const queryInput = document.getElementById('queryInput');
+        const kInput = document.getElementById('k');
+        const queryBtn = document.getElementById('queryBtn');
+        const loading = document.getElementById('loading');
+        const responseSection = document.getElementById('responseSection');
+        const errorSection = document.getElementById('errorSection');
+        const responseText = document.getElementById('responseText');
+        const sourcesList = document.getElementById('sourcesList');
+        const qualityMetrics = document.getElementById('qualityMetrics');
+        const copyResponseBtn = document.getElementById('copyResponseBtn');
 
+        queryBtn.addEventListener('click', async () => {
+            const query = queryInput.value.trim();
+            if (!query) {
+                alert('Please enter a question');
+                return;
+            }
+            await performQuery(query);
+        });
+
+        queryInput.addEventListener('keydown', (e) => {
+            if (e.ctrlKey && e.key === 'Enter') {
+                queryBtn.click();
+            }
+        });
+
+        async function performQuery(query) {
+            loading.classList.remove('hidden');
+            responseSection.classList.add('hidden');
+            errorSection.classList.add('hidden');
+            queryBtn.disabled = true;
+
+            try {
+                const k = parseInt(kInput.value) || 5;
+                const response = await fetch('/api/query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query, k })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok || !data.success) {
+                    showError(data.error || 'Query failed');
+                } else {
+                    displayResponse(data);
+                }
+            } catch (error) {
+                showError(error.message);
+            } finally {
+                loading.classList.add('hidden');
+                queryBtn.disabled = false;
+            }
+        }
+
+        function displayResponse(data) {
+            responseText.textContent = data.response;
+
+            const sourcesHtml = (data.citations || [])
+                .map((citation, i) => `
+                    <div class="source-item">
+                        <div class="source-number">${citation.source_number}</div>
+                        <div class="source-details">
+                            <div class="source-name">${citation.source}</div>
+                            ${citation.page !== null ? `<div class="source-meta">Page ${citation.page}</div>` : ''}
+                            <div class="source-relevance">Relevance: ${(citation.relevance_score * 100).toFixed(0)}%</div>
+                        </div>
+                    </div>
+                `)
+                .join('');
+            sourcesList.innerHTML = sourcesHtml || '<p class="empty-state">No sources found</p>';
+
+            if (data.validation) {
+                const v = data.validation;
+                const metricsHtml = `
+                    <div class="metric-row">
+                        <span class="metric-label">Response Valid</span>
+                        <span class="metric-value ${v.is_valid ? 'status-success' : 'status-error'}">
+                            ${v.is_valid ? 'Valid' : 'Invalid'}
+                        </span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Sufficient Length</span>
+                        <span class="metric-value ${v.min_length_met ? 'status-success' : 'status-error'}">
+                            ${v.min_length_met ? 'Yes' : 'No'}
+                        </span>
+                    </div>
+                    <div class="metric-row">
+                        <span class="metric-label">Relevant Content</span>
+                        <span class="metric-value ${v.contains_query_terms ? 'status-success' : 'status-error'}">
+                            ${v.contains_query_terms ? 'Yes' : 'No'}
+                        </span>
+                    </div>
+                `;
+                qualityMetrics.innerHTML = metricsHtml;
+            }
+
+            responseSection.classList.remove('hidden');
+        }
+
+        function showError(message) {
+            document.getElementById('errorMessage').textContent = message;
+            errorSection.classList.remove('hidden');
+        }
+
+        copyResponseBtn.addEventListener('click', () => {
+            navigator.clipboard.writeText(responseText.textContent);
+            const originalText = copyResponseBtn.textContent;
+            copyResponseBtn.textContent = 'Copied!';
+            setTimeout(() => {
+                copyResponseBtn.textContent = originalText;
+            }, 2000);
+        });
+
+        // Upload functionality
         const uploadArea = document.getElementById('uploadArea');
         const fileInput = document.getElementById('fileInput');
-        const fileInfo = document.getElementById('fileInfo');
-        const fileName = document.getElementById('fileName');
-        const fileSize = document.getElementById('fileSize');
-        const removeBtn = document.getElementById('removeBtn');
-        const summarizeBtn = document.getElementById('summarizeBtn');
-        const topicInput = document.getElementById('topicInput');
-        const loading = document.getElementById('loading');
-        const outputSection = document.getElementById('outputSection');
-        const summaryBox = document.getElementById('summaryBox');
-        const copyBtn = document.getElementById('copyBtn');
-        const stats = document.getElementById('stats');
-        const pageCount = document.getElementById('pageCount');
-        const wordCount = document.getElementById('wordCount');
+        const uploadStatus = document.getElementById('uploadStatus');
 
         uploadArea.addEventListener('click', () => fileInput.click());
-
         uploadArea.addEventListener('dragover', (e) => {
             e.preventDefault();
             uploadArea.classList.add('dragover');
         });
-
         uploadArea.addEventListener('dragleave', () => {
             uploadArea.classList.remove('dragover');
         });
-
         uploadArea.addEventListener('drop', (e) => {
             e.preventDefault();
             uploadArea.classList.remove('dragover');
-            const files = e.dataTransfer.files;
-            if (files.length > 0 && files[0].type === 'application/pdf') {
-                handleFile(files[0]);
-            }
+            handleFiles(e.dataTransfer.files);
         });
-
         fileInput.addEventListener('change', (e) => {
-            if (e.target.files.length > 0) {
-                handleFile(e.target.files[0]);
-            }
+            handleFiles(e.target.files);
         });
 
-        removeBtn.addEventListener('click', () => {
-            uploadedFile = null;
-            extractedText = '';
-            fileInput.value = '';
-            fileInfo.classList.remove('show');
-            stats.classList.remove('show');
-            summarizeBtn.disabled = true;
-            outputSection.classList.remove('show');
-        });
-
-        async function handleFile(file) {
-            uploadedFile = file;
-            fileName.textContent = file.name;
-            fileSize.textContent = formatFileSize(file.size);
-            fileInfo.classList.add('show');
-            summarizeBtn.disabled = false;
-
-            // First upload the file to server
-            const uploaded = await uploadFileToServer(file);
-            if (uploaded) {
-                // Then extract text for frontend processing
-                await extractTextFromPDF(file);
+        async function handleFiles(files) {
+            for (let file of files) {
+                if (file.type === 'application/pdf') {
+                    await uploadFile(file);
+                }
             }
         }
 
-        async function uploadFileToServer(file) {
+        async function uploadFile(file) {
             const formData = new FormData();
-            formData.append('pdfFile', file);
+            formData.append('file', file);
+
+            uploadStatus.classList.remove('hidden');
+            const statusMsg = document.getElementById('statusMessage');
+            statusMsg.textContent = `Uploading ${file.name}...`;
 
             try {
-                const response = await fetch('/upload', {
+                const response = await fetch('/api/upload', {
                     method: 'POST',
                     body: formData
                 });
-                
-                if (!response.ok) {
-                    const errorText = await response.text();
-                    alert(`Upload failed: ${errorText}`);
-                    return false;
+
+                const data = await response.json();
+
+                if (data.success) {
+                    const indexed = data.indexed_chunks || 0;
+                    if (indexed > 0) {
+                        statusMsg.textContent = `${file.name} uploaded and indexed (${indexed} chunks added)`;
+                    } else {
+                        statusMsg.textContent = `${file.name} processed`;
+                    }
+                } else {
+                    statusMsg.textContent = `Error: ${data.error}`;
                 }
-                return true;
-            } catch (err) {
-                alert('Error uploading PDF: ' + err.message);
-                return false;
+            } catch (error) {
+                statusMsg.textContent = `Error uploading ${file.name}: ${error.message}`;
             }
         }
 
-        async function extractTextFromPDF(file) {
-            const arrayBuffer = await file.arrayBuffer();
-            const pdf = await pdfjsLib.getDocument(arrayBuffer).promise;
-            let text = '';
+        // Stats functionality
+        const refreshStatsBtn = document.getElementById('refreshStatsBtn');
+        refreshStatsBtn.addEventListener('click', loadStats);
 
-            for (let i = 1; i <= pdf.numPages; i++) {
-                const page = await pdf.getPage(i);
-                const content = await page.getTextContent();
-                const pageText = content.items.map(item => item.str).join(' ');
-                text += pageText + ' ';
+        async function loadStats() {
+            refreshStatsBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/stats');
+                const data = await response.json();
+
+                if (data.success && data.stats) {
+                    const stats = data.stats;
+                    document.getElementById('totalDocs').textContent = 
+                        stats.retriever_stats?.total_documents || '-';
+                    document.getElementById('llmModel').textContent = stats.model || '-';
+                    document.getElementById('embeddingModel').textContent = 
+                        stats.embedding_model || '-';
+                    document.getElementById('chunkSize').textContent = 
+                        stats.config?.chunk_size || '-';
+                }
+            } catch (error) {
+                console.error('Failed to load stats:', error);
+            } finally {
+                refreshStatsBtn.disabled = false;
             }
-
-            extractedText = text;
-            
-            pageCount.textContent = pdf.numPages;
-            const words = text.trim().split(/\s+/).length;
-            wordCount.textContent = words.toLocaleString();
-            stats.classList.add('show');
         }
 
-        function formatFileSize(bytes) {
-            if (bytes < 1024) return bytes + ' B';
-            if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(2) + ' KB';
-            return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
-        }
-
-        summarizeBtn.addEventListener('click', async () => {
-            if (!uploadedFile) return;
-
-            loading.classList.add('show');
-            outputSection.classList.remove('show');
-            summarizeBtn.disabled = true;
-
-            setTimeout(() => {
-                const topic = topicInput.value.trim();
-                const summary = generateSummary(extractedText, topic);
-                
-                summaryBox.textContent = summary;
-                loading.classList.remove('show');
-                outputSection.classList.add('show');
-                summarizeBtn.disabled = false;
-            }, 1500);
-        });
-
-        function generateSummary(text, topic) {
-            const sentences = text.match(/[^.!?]+[.!?]+/g) || [];
-            const words = text.trim().split(/\s+/);
-            
-            let summary = `Document Overview:\n\n`;
-            summary += `This document contains approximately ${words.length.toLocaleString()} words across ${sentences.length} sentences. `;
-            
-            if (topic) {
-                summary += `\n\nFocusing on "${topic}":\n\n`;
-                summary += `The document discusses various aspects related to ${topic.toLowerCase()}. `;
-            } else {
-                summary += `\n\nKey Points:\n\n`;
-            }
-
-            const sampleSentences = sentences.slice(0, 5).join(' ').substring(0, 500);
-            summary += sampleSentences + '...\n\n';
-            summary += `Note: This is a demo summarizer. In a production environment, this would use an actual AI/ML model to generate intelligent summaries based on the document content${topic ? ' and your specified topic' : ''}.`;
-
-            return summary;
-        }
-
-        copyBtn.addEventListener('click', () => {
-            navigator.clipboard.writeText(summaryBox.textContent);
-            copyBtn.innerHTML = '<span>✓</span> Copied!';
-            setTimeout(() => {
-                copyBtn.innerHTML = '<span>📋</span> Copy';
-            }, 2000);
-        });
+        window.addEventListener('load', loadStats);
     </script>
 </body>
 </html>

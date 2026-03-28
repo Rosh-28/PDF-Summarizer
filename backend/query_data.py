@@ -1,52 +1,72 @@
+"""Enhanced query interface with RAG pipeline."""
 import argparse
-from langchain_chroma import Chroma
-from langchain.prompts import ChatPromptTemplate
-from langchain_ollama import OllamaLLM
-
-from get_embedding_function import get_embedding_function
-
-CHROMA_PATH = "chroma"
-
-PROMPT_TEMPLATE = """
-Answer the question based only on the following context:
-
-{context}
-
----
-
-Answer the question based on the above context: {question}
-"""
+import json
+from backend.rag_pipeline import rag_pipeline
+from backend.logging_config import logger
 
 
 def main():
-    # Create CLI.
-    parser = argparse.ArgumentParser()
+    """Main entry point for CLI queries."""
+    parser = argparse.ArgumentParser(description="Query RAG pipeline")
     parser.add_argument("query_text", type=str, help="The query text.")
+    parser.add_argument("--k", type=int, default=5, help="Number of documents to retrieve.")
+    parser.add_argument("--json", action="store_true", help="Output as JSON.")
     args = parser.parse_args()
-    query_text = args.query_text
-    query_rag(query_text)
+    
+    result = query_rag(args.query_text, k=args.k)
+    
+    if args.json:
+        print(json.dumps(result, indent=2))
+    else:
+        print_formatted_result(result)
 
 
-def query_rag(query_text: str):
-    # Prepare the DB.
-    embedding_function = get_embedding_function()
-    db = Chroma(persist_directory=CHROMA_PATH, embedding_function=embedding_function)
+def query_rag(query_text: str, k: int = 5) -> dict:
+    """
+    Query the RAG pipeline and return formatted response.
+    
+    Args:
+        query_text: User query
+        k: Number of documents to retrieve
+        
+    Returns:
+        Dictionary with response and metadata
+    """
+    logger.info(f"Processing query: {query_text}")
+    result = rag_pipeline.query(query_text, k=k, include_citations=True, validate=True)
+    return result
 
-    # Search the DB.
-    results = db.similarity_search_with_score(query_text, k=5)
 
-    context_text = "\n\n---\n\n".join([doc.page_content for doc, _score in results])
-    prompt_template = ChatPromptTemplate.from_template(PROMPT_TEMPLATE)
-    prompt = prompt_template.format(context=context_text, question=query_text)
-    # print(prompt)
-
-    model = OllamaLLM(model="mistral")
-    response_text = model.invoke(prompt)
-
-    sources = [doc.metadata.get("id", None) for doc, _score in results]
-    formatted_response = f"Response: {response_text}\nSources: {sources}"
-    print(formatted_response)
-    return response_text
+def print_formatted_result(result: dict):
+    """Print result in a user-friendly format."""
+    print("\n" + "="*60)
+    print("RESPONSE")
+    print("="*60)
+    print(result.get("response", "No response"))
+    
+    if result.get("citations"):
+        print("\n" + "="*60)
+        print("SOURCES")
+        print("="*60)
+        for citation in result.get("citations", []):
+            print(f"\n[{citation['source_number']}] {citation['source']}")
+            if citation.get("page") is not None:
+                print(f"    Page: {citation['page']}")
+            print(f"    Relevance: {citation['relevance_score']}")
+    
+    if result.get("validation"):
+        print("\n" + "="*60)
+        print("RESPONSE QUALITY")
+        print("="*60)
+        validation = result.get("validation", {})
+        print(f"Valid: {'✓' if validation.get('is_valid') else '✗'}")
+        if not validation.get("is_valid"):
+            print("Issues:")
+            for key, value in validation.items():
+                if key != "is_valid" and not value:
+                    print(f"  - {key}")
+    
+    print("\n")
 
 
 if __name__ == "__main__":
